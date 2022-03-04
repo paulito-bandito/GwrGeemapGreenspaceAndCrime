@@ -30,8 +30,12 @@ The geemap package has an optional dependency - geopandas, which can be challeng
 ## Run the Notebook
 
 Launch Jupyter notebook
+
 ```
     conda activate gee
     jupyter notebook
 
 ```
+In the browser window that opens, open the `London_Landcover.ipynb` file. From there, run each code block in sequence (or run them all at once.)
+
+Note you may have to wait a min or two for the processing to occur. 
