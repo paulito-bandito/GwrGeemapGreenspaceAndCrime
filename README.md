@@ -13,8 +13,11 @@ See https://geemap.org/installation/
 The geemap package has an optional dependency - geopandas, which can be challenging to install on some computers, especially Windows. It is highly recommended that you create a fresh conda environment to install geopandas and geemap. Follow the commands below to set up a conda env and install geopandas, xarray_leaflet, and geemap.
 
 ```
+    # create your environment, and activate it
     conda create -n gee python=3.9
     conda activate gee
+
+    #install core libraries
     conda install geopandas
     conda install mamba -c conda-forge
     mamba install geemap localtileserver -c conda-forge
