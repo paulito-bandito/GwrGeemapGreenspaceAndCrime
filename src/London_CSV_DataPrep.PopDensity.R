@@ -54,4 +54,4 @@
 # ============================
   
   # write the converted data file
-  write_csv(popDensityPivoted, "data/csv/london/refined/LondonPopDensityByWard_2011-2022.csv")
+  write_csv(popDensityPivoted, "data/csv/london/refined/London.PopDensity.ByWard_2011-2022.csv")
