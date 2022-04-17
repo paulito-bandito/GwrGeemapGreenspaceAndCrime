@@ -191,12 +191,45 @@
    data2010_2020$"Year2020_Wildlife Crime" = rowSums(data2010_2020[ c("Year2020_A_Wildlife Crime", "Year2020_B_Wildlife Crime" )], na.rm=TRUE)                                    
    data2010_2020$"Year2020_Offender Management Act" = rowSums(data2010_2020[ c("Year2020_A_Offender Management Act", "Year2020_B_Offender Management Act" )], na.rm=TRUE)                           
    data2010_2020$"Year2020_Other Knife Offences" = rowSums(data2010_2020[ c("Year2020_A_Other Knife Offences", "Year2020_B_Other Knife Offences" )], na.rm=TRUE)  
-    
+
+   # Remove the temp columns (we have merged them, it's ok to throw it away)
+   data2010_2020 = select(data2010_2020, -contains('Year2020_A_'))
+   data2010_2020 = select(data2010_2020, -contains('Year2020_B_'))
+   
+   # NOTE:  This is a terrible hack! A bandaid for some flawed logic above.
+   #
+   #        delete weird duplicates (hack, not sure why this is occurring)
+   #
+   firstCode = data2010_2020[1,]$WardCode # find first WardCode
+   rowMax = nrow(data2010_2020) # max number of rows
+   indicies = which(data2010_2020$WardCode == firstCode) #find all occurrances. The last one is the duplicate demarcation
+   secondOccurance = indicies[length(indicies)] # get the index before we find an duplicate.
+   
+   # remove the duplicated range
+   data2010_2020 = data2010_2020[-c(secondOccurance:rowMax), ]
+   
+   
+# ============================
+# Sum Yearly totals
+# ============================    
+     
+   data2010_2020$Total2011 = rowSums(select(data2010_2020, contains('Year2011'))[,-1], na.rm=TRUE)
+   data2010_2020$Total2012 = rowSums(select(data2010_2020, contains('Year2012'))[,-1], na.rm=TRUE)
+   data2010_2020$Total2013 = rowSums(select(data2010_2020, contains('Year2013'))[,-1], na.rm=TRUE)
+   data2010_2020$Total2014 = rowSums(select(data2010_2020, contains('Year2014'))[,-1], na.rm=TRUE)
+   data2010_2020$Total2015 = rowSums(select(data2010_2020, contains('Year2015'))[,-1], na.rm=TRUE)
+   data2010_2020$Total2016 = rowSums(select(data2010_2020, contains('Year2016'))[,-1], na.rm=TRUE)
+   data2010_2020$Total2017 = rowSums(select(data2010_2020, contains('Year2017'))[,-1], na.rm=TRUE)
+   data2010_2020$Total2018 = rowSums(select(data2010_2020, contains('Year2018'))[,-1], na.rm=TRUE)
+   data2010_2020$Total2019 = rowSums(select(data2010_2020, contains('Year2019'))[,-1], na.rm=TRUE)
+   data2010_2020$Total2020 = rowSums(select(data2010_2020, contains('Year2020'))[,-1], na.rm=TRUE)
+   data2010_2020$Total2021 = rowSums(select(data2010_2020, contains('Year2021'))[,-1], na.rm=TRUE)
+   data2010_2020$Total2022 = rowSums(select(data2010_2020, contains('Year2022'))[,-1], na.rm=TRUE)
+   
   
 # ============================
 # Write Out the data
 # ============================
   
   # write the converted data file
-  write_csv(data2010Pivoted, "data/csv/london/refined/LondonCrimeByWard_2010.csv")
-  write_csv(data2020Pivoted, "data/csv/london/refined/LondonCrimeByWard_2020.csv")
+  write_csv(data2010_2020, "data/csv/london/refined/LondonCrimeByWard_2010-2022.csv")
