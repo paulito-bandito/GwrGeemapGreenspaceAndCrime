@@ -1,14 +1,11 @@
 # ======================================
 # AUTHOR:       Paul Walter
-# ASSIGNMENT:   GEOG-639 > Lab 4 > Part 2
-# DATE:         Feb 12 2022
-# SUBJECT:      GWR and OLS. Please note that I have two main things
-#               going on in this script.
-#
-#                 1) I'm reading in the CSV report created by MGWR (see last
-#                    section), an GUI application created by a group
-#                    at the University of Arizona. It supplies much more data
-#                    in the results (CooksD, Pvalues, etc...)
+# SUBJECT:      Create a single shape file out of many that will have the mean 
+#               NDVI index. 
+#               
+#               Be sure to run the Jupyter Notebook first to produce the NDVI 
+#               shape files in your ~Downloads folder. This script will be looking
+#               for these intermediate files.
 #
 # REFERENCES:
 #               GWR in R: https://rpubs.com/quarcs-lab/tutorial-gwr1
@@ -46,8 +43,10 @@ London3TM_PROJ_4_CRC = st_crs(EPSG_CRC_NUM) #crs("+proj=tmerc +lat_0=0 +lon_0=-1
 # ===============================================================
 
 Output.Areas.2011 = read_sf("C:/Users/paulw/Downloads/London_MeanGreenessByWard_2011.shp") %>% 
-  select(GSS_CODE, mean)  %>%
+  select(GSS_CODE, BOROUGH, NAME, mean)  %>%
   rename(WardCode = GSS_CODE) %>%
+  rename(WardName = NAME) %>%
+  rename(BoroughName = BOROUGH) %>%
   rename(MeanNdvi2011 = mean )
 
 Output.Areas.2012 = read_sf("C:/Users/paulw/Downloads/London_MeanGreenessByWard_2012.shp") %>% 
@@ -125,102 +124,3 @@ rm(Output.Areas.2020)
 rm(Output.Areas.2021)
 
 write_sf(Output.Areas.2011, "data/shp/london_by_ward/refined/MeanNDVI/LondonMeanNdvi.shp" )
-
-# ======================================================
-# Point data.
-# ======================================================
-
-Cannabis.Data <- read_csv("data/csv/london/refined/London.PopDensity.ByWard_2011-2022.csv")
-
-duplicated(Cannabis.Data$WardCode)
-duplicated(Output.Areas.2011$WardCode)
-class(Cannabis.Data)
-class(Output.Areas.2011)
-intersect( Cannabis.Data$WardCode, Output.Areas.2011$WardCode)
-
-test = merge(Output.Areas.2011$WardCode, Cannabis.Data$WardCode, all = TRUE)
-write_sf(test, "data/shp/london_by_ward/refined/MeanNDVI/LondonMeanNdvi.v2.shp" )
-
-
-# School
-SchoolAndDayCare.Spatial = st_as_sf(
-  DayCareAndSchool.Data,
-  coords = c("Longitude", "Latitude"),
-  crs = EPSG_CRC_NUM,
-  remove = FALSE
-) %>%
-  CropSpatialData(Extend.Area.Name)
-
-
-# Cannabis
-Cannabis.Spatial = st_as_sf(
-  Cannabis.Data,
-  coords = c("lon", "lat"),
-  crs = EPSG_CRC_NUM,
-  remove = FALSE
-) %>%
-  CropSpatialData(Extend.Area.Name)
-
-plot(SchoolAndDayCare.Spatial)
-plot(Cannabis.Spatial)
-
-# ===============================================================
-#  SPATIAL JOINS
-# ===============================================================
-
-cannabisJoin = st_join(Cannabis.Spatial, Output.Areas)
-head(cannabisJoin, 10)
-
-schoolJoin = st_join(SchoolAndDayCare.Spatial, Output.Areas)
-head(schoolJoin, 10)
-
-# 
-# gwr.map <- cbind(MGWR.Census.Spatial, MGWR.Census)
-# gwr.map2 <- st_as_sf(gwr.map) # make this spatial
-
-# Finer Map rendering control
-# - https://www.rdocumentation.org/packages/tmap/versions/3.3-2/topics/tm_layout
-# - https://bookdown.org/lexcomber/brunsdoncomber2e/Ch3.html
-
-# test to see if the shape file has all the polygons it needs:
-createMap(
-  Output.Areas,
-  "CannabisPerCapita",
-  20,
-  "Cannabis PerCapita",
-  "pretty",
-  "GnBu"
-)
-createMap(
-  Output.Areas,
-  "SchoolPerCapita",
-  20,
-  "Schools PerCapita",
-  "pretty",
-  "GnBu"
-)
-createMap(
-  Output.Areas,
-  "DayCarePerCapita",
-  20,
-  "Day Care PerCapita",
-  "pretty",
-  "GnBu"
-)
-createMap(
-  Output.Areas,
-  "DayCarePerCapita",
-  20,
-  "Day Care PerCapita",
-  "pretty",
-  "GnBu"
-)
-# 
-# 
-# # test to see if we merged our values correctly (should be no missing points)
-createMap(Output.Areas.Boundary,
-          "city",
-          20,
-          "Household Size\n(HH_Size)",
-          "pretty",
-          "BuGn")
