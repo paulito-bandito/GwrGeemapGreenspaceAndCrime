@@ -9,6 +9,9 @@
 #   -	Critically analyze the statistical model you developed. 
 # ================================================================
 
+# source
+source("src/London_SHP_DataPrep.Methods.R")
+
 #Load software packages 
 
 	library(dplyr)
@@ -48,13 +51,19 @@ EPSG_CRC_NUM = 32629 # London
 	# setwd(choose.dir())
   # setwd("d:\\rfiles\\myfiles")
 
-  data2001 = read_csv("data/csv/london/refined/LondonCrimeByWard_2001.csv")
-  data2020 =   read_csv("data/csv/london/refined/LondonCrimeByWard_2020.csv")
+  # refined
+  Data.Crime = read_csv("data/csv/london/refined/London.Crime.ByWard_2011-2022.csv")
+  Data.PopDensity =   read_csv("data/csv/london/refined/London.PopDensity.ByWard_2011-2022.csv")
+
+  # raw
+  Data.Crime.Raw.1 = read_csv("data/csv/london/raw/MPS Ward Level Crime 2010-2020-03.csv")
+  Data.Crime.Raw.2 = read_csv("data/csv/london/raw/MPS Ward Level Crime (most recent 24 months).csv")
+  
+  Data.PopDensity.Raw =   read_csv("data/csv/london/raw/housing-density-ward.csv")
 
 	
   #Set the number of numeric digits to work with
 	options(digits = 9)
-	data <- read.csv("data/census_2016_calgary_data.csv") 
 	#This reads your csv file into R and names it "data"
 	attach(data) 
 
@@ -62,20 +71,74 @@ EPSG_CRC_NUM = 32629 # London
 #	Load the Shapefile that has the NDVI
 # ================================================================
 
-  London.Wards.2001 <- read_sf("data/shp/london_by_ward/GreenessMean2001/London_MeanGreenessByWard_2001.shp",
-                          query= query
-  ) # the shape file has all of canada, reduce it to only Calgary
+  London.Wards <- read_sf("data/shp/london_by_ward/raw_shp_file/LondonWard.shp") # the shape file has all of canada, reduce it to only Calgary
   
+  London.Wards.NDVI <- read_sf("data/shp/london_by_ward/refined/MeanNDVI/LondonMeanNdvi.shp") # the shape file has all of canada, reduce it to only Calgary
+  
+  createMap(
+    London.Wards,
+    "GSS_CODE",
+    20,
+    "Raw London",
+    "pretty",
+    "GnBu"
+  )
+	
+	createMap(
+    London.Wards.NDVI,
+    "WardCod",
+    20,
+    "Refined NDVI",
+    "pretty",
+    "GnBu"
+  )
 
+# ================================================================
+#	Find Intersect 
+# 
+# (There's something funky with the WardCodes, some don't match up)
+# ================================================================
+	intersection = unique(intersect(London.Wards.NDVI$WardCod, Data.Crime$WardCode )) 
+	intersection2 = intersect(Data.PopDensity$WardCode, intersection)
+	
+	setdiff(London.Wards.NDVI$WardCod, Data.Crime$WardCode)
+	length(setdiff(London.Wards.NDVI$WardCod, Data.Crime.Raw.1$WardCode))
+	length(setdiff(London.Wards.NDVI$WardCod, Data.Crime.Raw.2$WardCode))
+	length(setdiff(London.Wards.NDVI$WardCod, Data.PopDensity.Raw$Code))
+	
+	# Filter the data sets so they have the same length
+	Data.Crime = filter(Data.Crime, WardCode %in% intersection2)
+	London.Wards.NDVI = filter(London.Wards.NDVI, WardCod %in% intersection2)
+	Data.PopDensity = filter(Data.PopDensity, WardCode %in% intersection2)
+	
+	AllData = left_join( London.Wards.NDVI, Data.Crime, by = c("WardCod" = "WardCode") )
+	AllData = left_join( AllData, Data.PopDensity, by = c("WardCod" = "WardCode") )
+	
+	VARS_WE_NEED = c("WardCod", "Total2021", "Population_per_square_kilometre_2021", "MnN2021")
+	AllData = AllData[,VARS_WE_NEED]
+	
+	createMap(
+    AllData,
+    "WardCod",
+    20,
+    "Refined NDVI",
+    "pretty",
+    "GnBu"
+  )
+	
 # ================================================================
 # We will start our analysis in R at Step 2: Identify explanatory 
 # (i.e., independent) variables [x].
 # ================================================================
 
 	#Calculate correlation between variables 
-	correlation_P <- cor(data[,7:29], use="complete.obs", method="pearson") 
-	write.csv(correlation_P, "output/correlation_P.csv") 
-	corrplot(correlation_P, type = "upper", order = "hclust", method = "color", 
+	VARS_WE_NEED = c("Total2021", "Population_per_square_kilometre_2021", "MnN2021")
+	AllDataFilteredColumns = AllData[,VARS_WE_NEED]%>%
+    st_drop_geometry() # cast it as non spatial so we can ignore the geometery
+
+	correlation_P <- cor(AllDataFilteredColumns, use="complete.obs", method="pearson")
+	write.csv(correlation_P, "output/correlation_P.csv")
+	corrplot(correlation_P, type = "upper", order = "hclust", method = "color",
 	tl.cex = 0.7, tl.col = "black", tl.srt = 45)
 
 # # ================================================================
@@ -93,11 +156,104 @@ EPSG_CRC_NUM = 32629 # London
 # 
 # 	#Initial Regression model, name "modela"
 # 	#First, insert all non-corrrelated variables
-  	modela <- lm( med_hh_income ~ HH_Size + pop_density + married_prop + owner_prop + english_prop + unemployed_prop +
-  	              post_sec_prop + citizen_non_ratio + aboriginal_non_ratio + gender_ratio + age_15_64_prop, 
-  	              data = data)
+  	
+	# holy f*ck! It doesn't work with the same variable from different colletions!
+  	model0 <- lm( Data.Crime$Total2020 ~  London.Wards.NDVI$MnN2020  + 
+  	    Data.PopDensity$Population_per_square_kilometre_2020 )
+	
+  	summary(model0) 
+	
+	
+  	# Total
+		modela <- lm( AllData$Total2021 ~  AllData$MnN2021  + 
+  	    AllData$Population_per_square_kilometre_2021 )
 	
   	summary(modela) 
+  	
+  	#Bicycle Theft, 
+  	modela <- lm( AllData$`Year2021_Bicycle Theft` ~  AllData$MnN2021  + 
+  	    AllData$Population_per_square_kilometre_2021 )
+	
+  	summary(modela) 
+  	
+  	#drug trafficking,
+  	modela <- lm( AllData$`Year2021_Drug Trafficking` ~  AllData$MnN2021  + 
+  	    AllData$Population_per_square_kilometre_2021 )
+	
+  	summary(modela) 
+  	
+  	#Exploitation of Prostitution, 
+  	modela <- lm( AllData$`Year2021_Exploitation of Prostitution` ~  AllData$MnN2021  + 
+  	    AllData$Population_per_square_kilometre_2021 )
+	
+  	summary(modela) 
+  	
+  	# Soliciting for Pros
+  	modela <- lm( AllData$`Year2021_Soliciting for Prostitution` ~  AllData$MnN2021  + 
+  	    AllData$Population_per_square_kilometre_2021 )
+	
+  	summary(modela) 
+  	
+  	#Going Equipped for Stealing, 
+  	modela <- lm( AllData$`Year2021_Going Equipped for Stealing` ~  AllData$MnN2021  + 
+  	    AllData$Population_per_square_kilometre_2021 )
+	
+  	summary(modela) 
+  	
+  	#Homicide, 
+  	modela <- lm( AllData$Year2021_Homicide ~  AllData$MnN2021  + 
+  	    AllData$Population_per_square_kilometre_2021 )
+	
+  	summary(modela) 
+  	
+  	#Other Sexual Offences, 
+  	modela <- lm( AllData$`Year2021_Other Sexual Offences` ~  AllData$MnN2021  + 
+  	    AllData$Population_per_square_kilometre_2021 )
+	
+  	summary(modela) 
+  	
+  	# Possession of Article with Blade or Point, 
+  	modela <- lm( AllData$`Year2021_Possession of Article with Blade or Point` ~  AllData$MnN2021  + 
+  	    AllData$Population_per_square_kilometre_2021 )
+	
+  	summary(modela) 
+  	
+  	# Possession of Firearm with Intent, 
+  	modela <- lm( AllData$`Year2021_Possession of Firearm with Intent` ~  AllData$MnN2021  + 
+  	    AllData$Population_per_square_kilometre_2021 )
+	
+  	summary(modela) 
+  	
+  	# Possession of Firearms Offences, 
+  	modela <- lm( AllData$`Year2021_Possession of Firearms Offences` ~  AllData$MnN2021  + 
+  	    AllData$Population_per_square_kilometre_2021 )
+	
+  	summary(modela) 
+  	
+  	# Possession of Other Weapon, 
+  	modela <- lm( AllData$`Year2021_Possession of Other Weapon` ~  AllData$MnN2021  + 
+  	    AllData$Population_per_square_kilometre_2021 )
+	
+  	summary(modela) 
+  	
+  	# Rape, 
+  	modela <- lm( AllData$Year2021_Rape ~  AllData$MnN2021  + 
+  	    AllData$Population_per_square_kilometre_2021 )
+	
+  	summary(modela) 
+  	
+  	# Theft from Person, 
+  	modela <- lm( AllData$`Year2021_Theft from Person` ~  AllData$MnN2021  + 
+  	    AllData$Population_per_square_kilometre_2021 )
+	
+  	summary(modela) 
+  	
+  	#Violence with Injury
+  	modela <- lm( AllData$`Year2021_Violence with Injury` ~  AllData$MnN2021  + 
+  	    AllData$Population_per_square_kilometre_2021 )
+	
+  	summary(modela) 
+  	
   	
   
   	# Residuals:
@@ -338,3 +494,6 @@ EPSG_CRC_NUM = 32629 # London
 	hist(data$residuals, breaks=15, col= "grey",
 	     main="residuals",xlab="residuals")
 	# dev.off()
+	
+	
+write_sf(AllData, "data/shp/london_by_ward/refined/AllData/London.AllData.shp" )

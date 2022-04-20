@@ -42,6 +42,8 @@ London3TM_PROJ_4_CRC = st_crs(EPSG_CRC_NUM) #crs("+proj=tmerc +lat_0=0 +lon_0=-1
 #  2 SPATIAL DATA
 # ===============================================================
 
+Output.Areas.2011 = read_sf("data/shp/london_by_ward/raw_shp_file/LondonWard.shp")
+
 Output.Areas.2011 = read_sf("C:/Users/paulw/Downloads/London_MeanGreenessByWard_2011.shp") %>% 
   select(GSS_CODE, BOROUGH, NAME, mean)  %>%
   rename(WardCode = GSS_CODE) %>%
